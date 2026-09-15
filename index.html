@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Negative Keyword Audit Helper</title>
+<style>
+  :root{
+    --ink:#161b22;
+    --paper:#f7f5f0;
+    --line:#d8d3c8;
+    --accent:#1f5c4a;
+    --accent-soft:#e4efe9;
+    --flag:#8a3324;
+    --flag-soft:#f4e6e0;
+    --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+    --sans: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    line-height:1.45;
+    padding:40px 20px 80px;
+  }
+  .wrap{max-width:920px;margin:0 auto;}
+  header{margin-bottom:32px;}
+  h1{
+    font-size:1.65rem;
+    margin:0 0 6px;
+    font-weight:700;
+    letter-spacing:-0.01em;
+  }
+  .sub{color:#5a5448;font-size:0.95rem;max-width:60ch;}
+
+  .panel{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:22px 24px;
+    margin-bottom:22px;
+  }
+  .panel h2{
+    font-size:0.8rem;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:#7a7366;
+    margin:0 0 14px;
+    font-weight:600;
+  }
+
+  .drop{
+    border:1.5px dashed var(--line);
+    border-radius:6px;
+    padding:26px;
+    text-align:center;
+    color:#7a7366;
+    font-size:0.9rem;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .drop.drag{border-color:var(--accent);background:var(--accent-soft);}
+  .drop strong{color:var(--ink);}
+  input[type=file]{display:none;}
+
+  .controls{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+    margin-top:6px;
+  }
+  @media (max-width:640px){.controls{grid-template-columns:1fr;}}
+  label{
+    display:block;
+    font-size:0.82rem;
+    font-weight:600;
+    margin-bottom:6px;
+    color:#3d382e;
+  }
+  .hint{font-size:0.78rem;color:#8a8374;margin-top:4px;}
+  input[type=number], input[type=text]{
+    width:100%;
+    padding:9px 10px;
+    border:1px solid var(--line);
+    border-radius:4px;
+    font-family:var(--sans);
+    font-size:0.92rem;
+    background:#fdfcfa;
+  }
+  input:focus{outline:2px solid var(--accent);outline-offset:1px;}
+
+  .col-map{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+    margin-top:16px;
+  }
+  @media (max-width:640px){.col-map{grid-template-columns:1fr 1fr;}}
+  select{
+    width:100%;
+    padding:8px;
+    border:1px solid var(--line);
+    border-radius:4px;
+    background:#fdfcfa;
+    font-size:0.88rem;
+  }
+
+  button.run{
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    padding:12px 22px;
+    border-radius:4px;
+    font-size:0.95rem;
+    font-weight:600;
+    cursor:pointer;
+    margin-top:20px;
+  }
+  button.run:hover{background:#184a3b;}
+  button.run:disabled{background:#b9b3a5;cursor:not-allowed;}
+
+  .summary{
+    display:flex;
+    gap:28px;
+    flex-wrap:wrap;
+    margin-bottom:6px;
+  }
+  .stat{min-width:110px;}
+  .stat .n{font-size:1.6rem;font-weight:700;color:var(--accent);}
+  .stat.flagged .n{color:var(--flag);}
+  .stat .l{font-size:0.78rem;color:#7a7366;text-transform:uppercase;letter-spacing:.04em;}
+
+  table{width:100%;border-collapse:collapse;font-size:0.85rem;margin-top:14px;}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);}
+  th{font-size:0.72rem;text-transform:uppercase;letter-spacing:.04em;color:#7a7366;font-weight:600;}
+  tr.flagged{background:var(--flag-soft);}
+  .reason{font-size:0.76rem;color:var(--flag);}
+  .tablewrap{max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:4px;}
+
+  .output-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:16px;}
+  @media (max-width:640px){.output-grid{grid-template-columns:1fr;}}
+  .output-box h3{font-size:0.8rem;margin:0 0 8px;color:#3d382e;}
+  textarea{
+    width:100%;
+    height:180px;
+    font-family:var(--mono);
+    font-size:0.82rem;
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:10px;
+    background:#fdfcfa;
+    resize:vertical;
+  }
+  .copy{
+    margin-top:8px;
+    background:none;
+    border:1px solid var(--line);
+    padding:6px 12px;
+    border-radius:4px;
+    font-size:0.8rem;
+    cursor:pointer;
+  }
+  .copy:hover{background:var(--accent-soft);border-color:var(--accent);}
+
+  .empty{color:#8a8374;font-size:0.9rem;text-align:center;padding:30px 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Negative Keyword Audit Helper</h1>
+    <div class="sub">Upload a search term report, set your rules, get a ready-to-paste negative list. The rules are fully visible below — nothing here is a black box.</div>
+  </header>
+
+  <div class="panel">
+    <h2>1. Search term report</h2>
+    <div class="drop" id="drop">
+      <div><strong>Click to upload</strong> or drag a CSV here</div>
+      <div class="hint">Expects a Google Ads-style search term report: search term, cost, conversions, clicks (columns can be in any order — you'll map them below)</div>
+    </div>
+    <input type="file" id="fileInput" accept=".csv">
+    <div class="col-map" id="colMap" style="display:none;"></div>
+  </div>
+
+  <div class="panel">
+    <h2>2. Flagging rules</h2>
+    <div class="controls">
+      <div>
+        <label for="spendThresh">Flag if spend is above this with zero conversions</label>
+        <input type="number" id="spendThresh" value="15" min="0" step="1">
+        <div class="hint">Currency units, matching your CSV</div>
+      </div>
+      <div>
+        <label for="redFlags">Flag if the term contains any of these words</label>
+        <input type="text" id="redFlags" value="free, jobs, job, diy, how to, cheap, salary, review, reviews, template, course">
+        <div class="hint">Comma-separated. Case-insensitive, matches whole words.</div>
+      </div>
+    </div>
+    <button class="run" id="runBtn" disabled>Run audit</button>
+  </div>
+
+  <div class="panel" id="resultsPanel" style="display:none;">
+    <h2>3. Results</h2>
+    <div class="summary">
+      <div class="stat"><div class="n" id="statTotal">0</div><div class="l">Terms checked</div></div>
+      <div class="stat flagged"><div class="n" id="statFlagged">0</div><div class="l">Flagged</div></div>
+      <div class="stat"><div class="n" id="statSpend">£0</div><div class="l">Wasted spend flagged</div></div>
+    </div>
+    <div class="tablewrap">
+      <table id="resultsTable">
+        <thead><tr><th>Search term</th><th>Cost</th><th>Conversions</th><th>Flagged for</th></tr></thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel" id="outputPanel" style="display:none;">
+    <h2>4. Negative list, ready to paste</h2>
+    <div class="output-grid">
+      <div class="output-box">
+        <h3>Phrase match</h3>
+        <textarea id="phraseOut" readonly></textarea>
+        <button class="copy" data-target="phraseOut">Copy</button>
+      </div>
+      <div class="output-box">
+        <h3>Exact match</h3>
+        <textarea id="exactOut" readonly></textarea>
+        <button class="copy" data-target="exactOut">Copy</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let rawRows = [];
+let headers = [];
+
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('fileInput');
+const colMap = document.getElementById('colMap');
+const runBtn = document.getElementById('runBtn');
+
+drop.addEventListener('click', () => fileInput.click());
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+drop.addEventListener('drop', e => {
+  e.preventDefault();
+  drop.classList.remove('drag');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+
+function parseCSV(text) {
+  // simple CSV parser handling quoted fields
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i], next = text[i+1];
+    if (inQuotes) {
+      if (c === '"' && next === '"') { field += '"'; i++; }
+      else if (c === '"') { inQuotes = false; }
+      else { field += c; }
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && next === '\n') i++;
+        row.push(field); field = '';
+        if (row.length > 1 || row[0] !== '') rows.push(row);
+        row = [];
+      } else field += c;
+    }
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const rows = parseCSV(e.target.result);
+    if (!rows.length) return;
+    headers = rows[0].map(h => h.trim());
+    rawRows = rows.slice(1).filter(r => r.some(c => c.trim() !== ''));
+    buildColumnMap();
+    runBtn.disabled = false;
+  };
+  reader.readAsText(file);
+}
+
+function buildColumnMap() {
+  const fields = [
+    { key: 'term', label: 'Search term column' },
+    { key: 'cost', label: 'Cost column' },
+    { key: 'conversions', label: 'Conversions column' },
+    { key: 'clicks', label: 'Clicks column (optional)' }
+  ];
+  colMap.innerHTML = '';
+  colMap.style.display = 'grid';
+  fields.forEach(f => {
+    const div = document.createElement('div');
+    const label = document.createElement('label');
+    label.textContent = f.label;
+    const select = document.createElement('select');
+    select.id = 'map_' + f.key;
+    select.innerHTML = '<option value="">—</option>' +
+      headers.map((h, i) => `<option value="${i}">${h}</option>`).join('');
+    // best-guess auto-select
+    const guessMap = {
+      term: ['search term', 'term', 'keyword'],
+      cost: ['cost', 'spend'],
+      conversions: ['conversions', 'conv', 'conv.'],
+      clicks: ['clicks']
+    };
+    const guesses = guessMap[f.key];
+    const idx = headers.findIndex(h => guesses.some(g => h.toLowerCase().includes(g)));
+    if (idx >= 0) select.value = idx;
+    div.appendChild(label);
+    div.appendChild(select);
+    colMap.appendChild(div);
+  });
+}
+
+function num(v) {
+  if (!v) return 0;
+  const n = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
+  return isNaN(n) ? 0 : n;
+}
+
+document.getElementById('runBtn').addEventListener('click', runAudit);
+
+function runAudit() {
+  const termIdx = document.getElementById('map_term').value;
+  const costIdx = document.getElementById('map_cost').value;
+  const convIdx = document.getElementById('map_conversions').value;
+  if (termIdx === '' || costIdx === '') {
+    alert('Please map at least the search term and cost columns.');
+    return;
+  }
+  const spendThresh = num(document.getElementById('spendThresh').value);
+  const redFlags = document.getElementById('redFlags').value
+    .split(',').map(w => w.trim().toLowerCase()).filter(Boolean);
+
+  const results = rawRows.map(r => {
+    const term = (r[termIdx] || '').trim();
+    const cost = num(r[costIdx]);
+    const conv = convIdx !== '' ? num(r[convIdx]) : 0;
+    const reasons = [];
+
+    if (cost >= spendThresh && conv === 0) {
+      reasons.push(`Spend ≥ ${spendThresh} with 0 conversions`);
+    }
+    const lowerTerm = term.toLowerCase();
+    const matchedWords = redFlags.filter(w => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(lowerTerm));
+    if (matchedWords.length) {
+      reasons.push(`Contains: ${matchedWords.join(', ')}`);
+    }
+    return { term, cost, conv, reasons };
+  }).filter(r => r.term);
+
+  renderResults(results, spendThresh);
+}
+
+function renderResults(results, spendThresh) {
+  const flagged = results.filter(r => r.reasons.length);
+  document.getElementById('statTotal').textContent = results.length;
+  document.getElementById('statFlagged').textContent = flagged.length;
+  const wastedSpend = flagged
+    .filter(r => r.conv === 0)
+    .reduce((sum, r) => sum + r.cost, 0);
+  document.getElementById('statSpend').textContent = '£' + wastedSpend.toFixed(2);
+
+  const body = document.getElementById('resultsBody');
+  body.innerHTML = '';
+  results
+    .slice()
+    .sort((a, b) => (b.reasons.length - a.reasons.length) || (b.cost - a.cost))
+    .forEach(r => {
+      const tr = document.createElement('tr');
+      if (r.reasons.length) tr.className = 'flagged';
+      tr.innerHTML = `
+        <td>${escapeHtml(r.term)}</td>
+        <td>£${r.cost.toFixed(2)}</td>
+        <td>${r.conv}</td>
+        <td class="reason">${r.reasons.map(escapeHtml).join(' · ') || '—'}</td>
+      `;
+      body.appendChild(tr);
+    });
+
+  document.getElementById('resultsPanel').style.display = 'block';
+
+  // dedupe flagged terms, normalise casing/spacing
+  const cleanTerms = [...new Set(
+    flagged.map(r => r.term.toLowerCase().trim().replace(/\s+/g, ' '))
+  )];
+  document.getElementById('phraseOut').value = cleanTerms.map(t => `"${t}"`).join('\n');
+  document.getElementById('exactOut').value = cleanTerms.map(t => `[${t}]`).join('\n');
+  document.getElementById('outputPanel').style.display = cleanTerms.length ? 'block' : 'none';
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+document.querySelectorAll('.copy').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const ta = document.getElementById(btn.dataset.target);
+    ta.select();
+    document.execCommand('copy');
+    const old = btn.textContent;
+    btn.textContent = 'Copied';
+    setTimeout(() => btn.textContent = old, 1200);
+  });
+});
+</script>
+</body>
+</html>
